@@ -1,3 +1,8 @@
+param (
+    [switch]$byVolume = $false,
+    [switch]$executeKcc = $false
+)
+
 Write-Host "Manga Prepare Script"
 Write-Host "Author: Adrian Jesus"
 Write-Host "script to preparer the chapters folders of a manga, downloaded by HakuNeko Software, into volumes guided by the name of the folders to track the volumes"
@@ -106,18 +111,45 @@ foreach ($mangaFolder in (Get-ChildItem -Path $processingFolder)){
     if(-Not (Test-Path -Path $finishedFolder)){ 
         New-Item -ItemType Directory -Path $finishedFolder -Force 
     }
-    Write-Host "Compressing $mangaFolder"
-    $destinationPath = $finishedFolder + "\" + $mangaFolder + ".zip"
-    Compress-Archive -Path $mangaFolder.FullName -DestinationPath $destinationPath
-    Rename-Item -Path $destinationPath -NewName ($mangaFolder.Name + ".cbz")
+
+    # check if is going to compress by manga folder or by volume folder
+    if($byVolume){
+        $destinationFolder = $finishedFolder + "\" + $mangaFolder.Name
+        New-Item -ItemType Directory -Path $destinationFolder -Force
+        foreach ($volumeFolder in (Get-ChildItem -Path $mangaFolder.FullName)){
+            Write-Host "Compressing $mangaFolder $volumeFolder"
+            $destinationPath = $destinationFolder + "\" + $mangaFolder.Name + " " + $volumeFolder.Name
+            $destinationZipFile = $destinationPath + ".zip"
+            $destinationCbzFileName = $mangaFolder.Name + " " + $volumeFolder.Name + ".cbz"
+            Compress-Archive -Path $volumeFolder.FullName -DestinationPath $destinationZipFile
+            Rename-Item -Path $destinationZipFile -NewName ($destinationCbzFileName)
+        }
+    }
+    else {
+        Write-Host "Compressing $mangaFolder"
+        $destinationPath = $finishedFolder + "\" + $mangaFolder + ".zip"
+        Compress-Archive -Path $mangaFolder.FullName -DestinationPath $destinationPath
+        Rename-Item -Path $destinationPath -NewName ($mangaFolder.Name + ".cbz")
+    }
 }
 
 # delete temporary folder
 Remove-Item -Path $processingFolder -Recurse
 
-# call kcc app to convert the cbz to mobi file format 
-# TODO - this must be configurable, not only in data, but also in execution
-foreach ($manga in (Get-ChildItem -Path $finishedFolder)){
-    Write-Host "Converting $manga from cbz to mobi file format"
-    .\kcc-c2e_5.6.3.exe $manga.FullName --profile K11 --manga-style --hq --stretch --cropping 0 --title $manga.Name --format MOBI 
+# call kcc app to convert the cbz to mobi file format if asked for it
+if ($executeKcc) {
+    if($byVolume) {
+        foreach ($manga in (Get-ChildItem -Path $finishedFolder)) {
+            foreach ($volume in (Get-ChildItem -Path $manga.FullName)){
+                Write-Host "Converting $volume from cbz to mobi file format"
+                .\kcc-c2e_5.6.3.exe $volume.FullName --profile K11 --manga-style --stretch --cropping 0 --title $volume.Name --format MOBI
+            }
+        }
+    }
+    else{
+        foreach ($manga in (Get-ChildItem -Path $finishedFolder)){
+            Write-Host "Converting $manga from cbz to mobi file format"
+            .\kcc-c2e_5.6.3.exe $manga.FullName --profile K11 --manga-style --stretch --cropping 0 --title $manga.Name --format MOBI
+        }
+    }
 }
