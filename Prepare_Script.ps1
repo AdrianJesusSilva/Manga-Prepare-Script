@@ -18,7 +18,7 @@ if(Test-Path -Path $finishedFolder){
 
 # list all the folder in location
 foreach ($folder in (Get-ChildItem -Directory)) {
-	Write-Host "Processing $folder"
+    Write-Host "Processing $folder"
 	Write-Host " "
 
     # creating the processing folder path for the manga
@@ -26,41 +26,79 @@ foreach ($folder in (Get-ChildItem -Directory)) {
     Write-Host "Manga Folder: $mangeFolder"
     Write-Host " "
 
-	foreach ($chapter in (Get-ChildItem $folder -Directory)) {
-		Write-Host "Processing $chapter"
+    foreach ($chapter in (Get-ChildItem $folder -Directory)) {
+        Write-Host "Processing $chapter"
 		Write-Host " "
 		
 		# check if exist and create volume folder
-        $volumeFolder = $mangeFolder + "\Volume " + ($chapter.Name).Substring(4,2)
+        $volumeFolder = ""
+        if ($chapter.Name.Contains("Vol")) {
+            $volumeFolder = $mangeFolder + "\Volume " + ($chapter.Name).Substring(4,2)
+        }
+        else {
+            $volumeFolder = $mangeFolder
+        }
+        
         Write-Host "Volume Folder: $volumeFolder "
         Write-Host " "
-
+        
         # check if exist and create chapter folder
-        $chapterFolder = $volumeFolder + "\Chapter " +  ($chapter.Name).Substring(10,($chapter.Name.IndexOf("(") - 11))
+        $chapterFolder = ""
+        if ($chapter.Name.Contains("(")) {
+            if ($chapter.Name.Contains("Vol")) {
+                $chapterFolder = $volumeFolder + "\Chapter " +  ($chapter.Name).Substring(10,($chapter.Name.IndexOf("(") - 11))
+            }
+            else {
+                $chapterFolder = $volumeFolder + "\Chapter " +  ($chapter.Name).Substring(3,($chapter.Name.IndexOf("(") - 4))
+            }
+        }
+        else{
+            $chapterFolder = $volumeFolder + "\Chapter " +  ($chapter.Name).Substring(10)
+        }
+        
         Write-Host "Chapter Folder: $chapterFolder "
         Write-Host " "
 
+        # TODO: handle the case where the folder contais a "." and other characters
+        # the Copy-Item can't handle that type of names for some reason
+        # if the chapter name is only dots is no problem aparently 
+        # TODO: delete the last white space if any
         if(-Not (Test-Path -Path $chapterFolder)) {
 			Write-Host "Creating Chapter Folder $chapterFolder"
 			Write-Host " "
 			New-Item -ItemType Directory -Path $chapterFolder -Force
+            Write-Host " "
 		}
 
         # get the prefix for the renaming archive Vol.02 Ch.0010  Page.19.png
-		$namePrefix = ($chapter.Name).Substring(0,($chapter.Name.IndexOf("-") - 1)) + " Page."
+		$namePrefix = $chapter.Name
+        if ($chapter.Name.Contains("-")){
+            $namePrefix = ($chapter.Name).Substring(0,($chapter.Name.IndexOf("-") - 1)) + " Page."
+        }
+        elseif ($chapter.Name.Contains("(")) {
+            $namePrefix = ($chapter.Name).Substring(0,($chapter.Name.IndexOf("(") - 1)) + " Page."
+        }
+        Write-Host "Name Prefix: $namePrefix"
+        Write-Host " "
 		
 		# process every file in the chapter folder 
 		Write-Host "Copy files to $chapterFolder"
+        $pageNumber = 1
 		foreach ($file in (Get-ChildItem -literalpath $chapter.FullName)) {	
 			# copy the file to the chapter folder with the new name
-			$newName = $namePrefix + $file
+            $strPageNumber = $pageNumber.ToString()
+            if($strPageNumber.Length -eq 1){
+                $strPageNumber = "0" + $strPageNumber
+            }
+			$newName = $namePrefix + $strPageNumber + $file.Extension
             $filePath = $chapterFolder + "\" + $newName
             Write-Host "File Path: $filePath"
 			Write-Host "$file copy as $newName"
             Copy-Item -LiteralPath $file.FullName -Destination $filePath
+            $pageNumber += 1
 		}
         Write-Host " "
-	}
+    }
 }
 
 # after finished the processing, compressing to cbz 
@@ -79,7 +117,7 @@ Remove-Item -Path $processingFolder -Recurse
 
 # call kcc app to convert the cbz to mobi file format 
 # TODO - this must be configurable, not only in data, but also in execution
-# foreach ($manga in (Get-ChildItem -Path $finishedFolder)){
-#     Write-Host "Converting $manga from cbz to mobi file format"
-#     .\kcc-c2e_5.6.3.exe $manga.FullName --profile K11 --manga-style --hq --stretch --cropping 0 --title $manga.Name --format MOBI 
-# }
+foreach ($manga in (Get-ChildItem -Path $finishedFolder)){
+    Write-Host "Converting $manga from cbz to mobi file format"
+    .\kcc-c2e_5.6.3.exe $manga.FullName --profile K11 --manga-style --hq --stretch --cropping 0 --title $manga.Name --format MOBI 
+}
