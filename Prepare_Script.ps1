@@ -365,7 +365,7 @@ if ($executeKcc) {
                 Remove-Item -Path $mobiFile
             }
             Write-Host "Converting $manga from cbz to mobi file format"
-            .\kcc-c2e_5.6.3.exe $manga.FullName --profile K11 --manga-style --stretch --cropping 0 --title $manga.Name --format MOBI
+            .\kcc-c2e_5.6.3.exe $manga.FullName --profile K11 --manga-style --stretch --cropping 0 --format MOBI
         }
     }
     else {
@@ -376,7 +376,7 @@ if ($executeKcc) {
                     Remove-Item -Path $mobiFile
                 }
                 Write-Host "Converting $volume from cbz to mobi file format"
-                .\kcc-c2e_5.6.3.exe $volume.FullName --profile K11 --manga-style --stretch --cropping 0 --title $volume.Name --format MOBI
+                .\kcc-c2e_5.6.3.exe $volume.FullName --profile K11 --manga-style --stretch --cropping 0 --format MOBI
             }
         }
     }
